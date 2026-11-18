@@ -259,7 +259,11 @@ class WebSerialService {
       this.disconnect();
     }
 
-    this.stopSimulation();
+    if (this.simulatedStreamTimer) {
+      clearInterval(this.simulatedStreamTimer);
+      this.simulatedStreamTimer = null;
+    }
+
     this.isSimulating = true;
     this.emit('status', { 
       state: 'simulating', 
@@ -267,25 +271,29 @@ class WebSerialService {
     });
 
     let step = 0;
-    this.simulatedStreamTimer = setInterval(() => {
+    const tick = () => {
       step++;
       // Realistic simulated DS18B20 temperature
-      const tempC = parseFloat((25.5 + Math.sin(step * 0.1) * 1.2 + (Math.random() - 0.5) * 0.15).toFixed(1));
+      const tempC = parseFloat((25.5 + Math.sin(step * 0.1) * 1.2 + (Math.random() - 0.5) * 0.2).toFixed(1));
       
       // Realistic ACS712 current based on user's calibrated 0.81V zero-point:
       // currentAmps = (sensorVoltage - 0.81) / 0.100;
       // Normal battery discharge or charging around 1.1A to 1.6A
-      const currentAmps = parseFloat((1.25 + Math.sin(step * 0.12) * 0.35 + (Math.random() - 0.5) * 0.05).toFixed(2));
+      const currentAmps = parseFloat((1.25 + Math.sin(step * 0.12) * 0.35 + (Math.random() - 0.5) * 0.08).toFixed(2));
 
       // Realistic pack terminal voltage with mild ripple and IR load drop
-      const voltageV = parseFloat((24.25 - (currentAmps * 0.06) + (Math.random() - 0.5) * 0.04).toFixed(2));
+      const voltageV = parseFloat((24.25 - (currentAmps * 0.06) + (Math.random() - 0.5) * 0.05).toFixed(2));
 
       // Emits the exact jsonPayload string from the user's ESP32 sketch:
       // {"temperature":25.5,"current":1.25,"voltage":24.2}
       const jsonPayload = `{"temperature":${tempC.toFixed(1)},"current":${currentAmps.toFixed(2)},"voltage":${voltageV.toFixed(2)}}`;
 
+      this.stats.bytesReceived += jsonPayload.length + 2;
       this.processIncomingLine(jsonPayload);
-    }, 1000); // exact 1000ms matching UPDATE_INTERVAL in ESP32 code
+    };
+
+    tick();
+    this.simulatedStreamTimer = setInterval(tick, 1000); // exact 1000ms matching UPDATE_INTERVAL in ESP32 code
 
     console.log('[WebSerial] Started bench test simulation mode');
   }
@@ -296,6 +304,10 @@ class WebSerialService {
       this.simulatedStreamTimer = null;
     }
     this.isSimulating = false;
+    this.emit('status', { 
+      state: 'disconnected', 
+      message: 'Bench Simulator Paused (Ready to Connect USB)' 
+    });
   }
 }
 

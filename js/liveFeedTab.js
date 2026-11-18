@@ -72,6 +72,16 @@ const LiveFeedTabController = {
       }
     }
 
+    // Auto-start continuous 1-second bench stream if hardware serial is disconnected,
+    // so live feed immediately changes every 1 second continuously upon opening
+    if (window.WebSerialService && !window.WebSerialService.isConnected && !window.WebSerialService.isSimulating) {
+      window.WebSerialService.startSimulation();
+      if (this.btnSimulate) {
+        this.btnSimulate.innerHTML = '<span>⏹</span> Pause Bench Simulator';
+        this.btnSimulate.classList.add('is-active');
+      }
+    }
+
     console.log('✓ ESP32 Live Feed Tab & 16x2 LCD Controller Initialized');
   },
 
@@ -104,7 +114,7 @@ const LiveFeedTabController = {
           this.btnSimulate.classList.remove('is-active');
         } else {
           window.WebSerialService.startSimulation();
-          this.btnSimulate.innerHTML = '<span>⏹</span> Stop Bench Simulator';
+          this.btnSimulate.innerHTML = '<span>⏹</span> Pause Bench Simulator';
           this.btnSimulate.classList.add('is-active');
         }
       });
@@ -591,13 +601,21 @@ const LiveFeedTabController = {
       if (this.statusDot) {
         this.statusDot.className = 'conn-dot dot-simulating';
       }
+      if (this.btnSimulate) {
+        this.btnSimulate.innerHTML = '<span>⏹</span> Pause Bench Simulator';
+        this.btnSimulate.classList.add('is-active');
+      }
     } else if (status.state === 'disconnected') {
-      this.statusText.textContent = 'Disconnected (Ready to Connect)';
+      this.statusText.textContent = status.message || 'Disconnected (Ready to Connect)';
       if (this.statusDot) {
         this.statusDot.className = 'conn-dot dot-disconnected';
       }
       if (this.btnConnect) this.btnConnect.style.display = 'inline-flex';
       if (this.btnDisconnect) this.btnDisconnect.style.display = 'none';
+      if (this.btnSimulate) {
+        this.btnSimulate.innerHTML = '<span>▶</span> Run 1s Bench Simulator';
+        this.btnSimulate.classList.remove('is-active');
+      }
     } else if (status.state === 'error') {
       this.statusText.textContent = `Error: ${status.error || 'Serial read error'}`;
       if (this.statusDot) {
@@ -612,3 +630,12 @@ const LiveFeedTabController = {
 };
 
 window.LiveFeedTabController = LiveFeedTabController;
+
+// Auto-initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    LiveFeedTabController.init();
+  });
+} else {
+  LiveFeedTabController.init();
+}

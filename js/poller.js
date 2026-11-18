@@ -5,9 +5,9 @@
 class TelemetryPoller {
   constructor() {
     this.timer = null;
-    this.intervalMs = 60000; // 60 seconds ESP32 heartbeat cycle
+    this.intervalMs = 1000; // 1 second real-time heartbeat cycle
     this.missedConsecutive = 0;
-    this.maxMissedBeforeOffline = 2; // Plan: 2 consecutive missed updates = Hardware Offline
+    this.maxMissedBeforeOffline = 3; // 3 consecutive missed updates = Hardware Offline
     this.simulatedFault = false;
     this.isPolling = false;
     this.endpoint = '/api/telemetry'; // ESP32 HTTP route
@@ -18,7 +18,7 @@ class TelemetryPoller {
     // Read state defaults
     const connState = window.AppState ? window.AppState.get('connection') : null;
     if (connState) {
-      this.intervalMs = connState.pollingIntervalMs || 60000;
+      this.intervalMs = connState.pollingIntervalMs || 1000;
     }
 
     // Start polling automatically
@@ -66,6 +66,12 @@ class TelemetryPoller {
     // Check if fault simulation is active
     if (this.simulatedFault) {
       this.handleMissedUpdate('Simulated network timeout');
+      return;
+    }
+
+    // If Web Serial or Bench Simulator is already actively streaming 1-second packets directly,
+    // let it supply the telemetry to avoid conflict
+    if (window.WebSerialService && (window.WebSerialService.isConnected || window.WebSerialService.isSimulating)) {
       return;
     }
 

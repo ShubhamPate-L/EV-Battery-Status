@@ -18,7 +18,7 @@ class AppStateStore {
         deviceId: 'EV-PACK-001',
         lastSync: new Date(),
         missedUpdates: 0,
-        pollingIntervalMs: 60000,   // 60-second hardware ESP32 loop
+        pollingIntervalMs: 1000,    // 1-second continuous live telemetry loop
         liveEndpointUrl: 'http://192.168.4.1/api/telemetry'
       },
 

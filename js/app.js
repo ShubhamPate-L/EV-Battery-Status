@@ -117,6 +117,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (tabId === 'live-feed') {
       if (window.LiveFeedTabController) {
         window.LiveFeedTabController.init();
+        if (window.LiveFeedTabController.chartInstance) {
+          window.LiveFeedTabController.chartInstance.resize();
+          window.LiveFeedTabController.chartInstance.update();
+        }
       }
     }
 
@@ -501,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (liveBuffer.length > 20) liveBuffer.shift();
         renderLiveStreamRows();
       }
-    }, 5000);
+    }, 1000); // 1-second continuous live streaming updates
   }
 
   function stopLiveStreamingMode() {
@@ -619,6 +623,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.AppState.subscribe('telemetry', (telemetry) => {
       updateTelemetryBanner(telemetry);
     });
+  }
+
+  // Auto-initialize LiveFeedTabController so live telemetry feeds continuously from boot
+  if (window.LiveFeedTabController) {
+    window.LiveFeedTabController.init();
   }
 
   // Initialize Poller (Phase 5)
