@@ -609,6 +609,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 3200);
   }
 
+  window.showToast = showToast;
+
   // ============================================================
   // 8. INITIALIZATION SEQUENCE
   // ============================================================

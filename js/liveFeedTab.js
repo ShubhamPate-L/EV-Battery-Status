@@ -44,6 +44,19 @@ const LiveFeedTabController = {
     this.serialBytesCount = document.getElementById('serialBytesCount');
     this.serialPacketsCount = document.getElementById('serialPacketsCount');
 
+    // CSV Logger Elements
+    this.btnToggleCsvLog = document.getElementById('btnToggleCsvLog');
+    this.btnExportLiveCsv = document.getElementById('btnExportLiveCsv');
+    this.btnClearCsvLog = document.getElementById('btnClearCsvLog');
+    this.csvRecordingDot = document.getElementById('csvRecordingDot');
+    this.csvStatusText = document.getElementById('csvStatusText');
+    this.csvLogCountBadge = document.getElementById('csvLogCountBadge');
+    this.csvLogSizeBadge = document.getElementById('csvLogSizeBadge');
+
+    this.isCsvLogging = true;
+    this.csvBuffer = [];
+    this.loadPersistedCsvBuffer();
+
     this.bindEvents();
     this.initChart();
     this.initialized = true;
@@ -104,6 +117,42 @@ const LiveFeedTabController = {
           this.serialTerminal.innerHTML = '<div class="terminal-msg info">// Terminal cleared. Waiting for serial data...</div>';
         }
         if (this.terminalLineCount) this.terminalLineCount.textContent = '0 lines';
+      });
+    }
+
+    // CSV Logging Toggle Button
+    if (this.btnToggleCsvLog) {
+      this.btnToggleCsvLog.addEventListener('click', () => {
+        this.isCsvLogging = !this.isCsvLogging;
+        if (this.isCsvLogging) {
+          this.btnToggleCsvLog.innerHTML = '<span>⏹</span> Pause Logging';
+          if (this.csvRecordingDot) this.csvRecordingDot.className = 'csv-recording-dot is-recording';
+          if (this.csvStatusText) this.csvStatusText.textContent = 'Auto-logging active (buffered locally in browser)';
+        } else {
+          this.btnToggleCsvLog.innerHTML = '<span>▶</span> Resume Logging';
+          if (this.csvRecordingDot) this.csvRecordingDot.className = 'csv-recording-dot';
+          if (this.csvStatusText) this.csvStatusText.textContent = 'Logging paused (click Resume to record)';
+        }
+      });
+    }
+
+    // CSV Export to Disk Button
+    if (this.btnExportLiveCsv) {
+      this.btnExportLiveCsv.addEventListener('click', () => {
+        this.exportCsvFile();
+      });
+    }
+
+    // CSV Clear Buffer Button
+    if (this.btnClearCsvLog) {
+      this.btnClearCsvLog.addEventListener('click', () => {
+        if (this.csvBuffer.length === 0) {
+          if (window.showToast) window.showToast('CSV buffer is already empty', false);
+          return;
+        }
+        if (confirm(`Clear all ${this.csvBuffer.length} recorded CSV samples from memory?`)) {
+          this.clearCsvBuffer();
+        }
       });
     }
 
@@ -355,6 +404,149 @@ const LiveFeedTabController = {
         current_amps: -(currentA * 1000), // convert Amps to mA for top banner
         pack_voltage: voltageV
       });
+    }
+
+    // 6. RECORD LIVE PACKET TO CSV BUFFER
+    this.recordPacketToCsv({
+      timestamp_iso: data.timestamp ? data.timestamp.toISOString() : new Date().toISOString(),
+      date: data.timestamp ? data.timestamp.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
+      time: data.timestamp ? data.timestamp.toLocaleTimeString('en-US', { hour12: false }) : '',
+      temperature: tempC,
+      current: currentA,
+      voltage: voltageV,
+      power: powerW,
+      pin_voltage: pinVoltage,
+      sensor_voltage: sensorVoltage,
+      zero_offset: 0.810,
+      source: (window.WebSerialService && window.WebSerialService.isSimulating) ? 'BENCH_SIMULATOR' : 'ESP32_HARDWARE'
+    });
+  },
+
+  /**
+   * Loads existing CSV buffer from browser localStorage
+   */
+  loadPersistedCsvBuffer() {
+    try {
+      const stored = localStorage.getItem('voltsense_live_telemetry_csv');
+      if (stored) {
+        this.csvBuffer = JSON.parse(stored);
+        this.updateCsvLogStats();
+      }
+    } catch (e) {
+      console.warn('[CSV Logger] Could not load localStorage buffer:', e);
+      this.csvBuffer = [];
+    }
+  },
+
+  /**
+   * Persists CSV buffer into localStorage (capped at last 2500 entries)
+   */
+  persistCsvBuffer() {
+    try {
+      const toStore = this.csvBuffer.slice(-2500);
+      localStorage.setItem('voltsense_live_telemetry_csv', JSON.stringify(toStore));
+    } catch (e) {
+      console.warn('[CSV Logger] Local storage quota limit:', e);
+    }
+  },
+
+  /**
+   * Updates CSV row count and estimated file size badges
+   */
+  updateCsvLogStats() {
+    const count = this.csvBuffer ? this.csvBuffer.length : 0;
+    if (this.csvLogCountBadge) {
+      this.csvLogCountBadge.textContent = `${count} rows logged`;
+    }
+    if (this.csvLogSizeBadge) {
+      // Average ~90 bytes per CSV formatted row
+      const kb = ((count * 90) / 1024).toFixed(1);
+      this.csvLogSizeBadge.textContent = `${kb} KB`;
+    }
+  },
+
+  /**
+   * Appends incoming live packet to in-memory buffer
+   */
+  recordPacketToCsv(packet) {
+    if (!this.isCsvLogging) return;
+
+    this.csvBuffer.push(packet);
+    this.updateCsvLogStats();
+
+    // Persist to local disk cache every 5 samples
+    if (this.csvBuffer.length % 5 === 0) {
+      this.persistCsvBuffer();
+    }
+  },
+
+  /**
+   * Generates formatted CSV content and triggers local file download
+   */
+  exportCsvFile() {
+    if (!this.csvBuffer || this.csvBuffer.length === 0) {
+      if (window.showToast) window.showToast('No telemetry data recorded to export', false);
+      return;
+    }
+
+    const headers = [
+      'Timestamp_ISO',
+      'Date',
+      'Time',
+      'DS18B20_Temperature_C',
+      'ACS712_Current_A',
+      'Battery_Voltage_V',
+      'Pack_Power_W',
+      'Pin_Voltage_V',
+      'Sensor_Voltage_V',
+      'Calibrated_Zero_Offset_V',
+      'Data_Source'
+    ];
+
+    const rows = this.csvBuffer.map(item => [
+      `"${item.timestamp_iso || ''}"`,
+      `"${item.date || ''}"`,
+      `"${item.time || ''}"`,
+      parseFloat(item.temperature).toFixed(1),
+      parseFloat(item.current).toFixed(2),
+      parseFloat(item.voltage).toFixed(2),
+      parseFloat(item.power).toFixed(1),
+      parseFloat(item.pin_voltage).toFixed(3),
+      parseFloat(item.sensor_voltage).toFixed(3),
+      parseFloat(item.zero_offset).toFixed(3),
+      `"${item.source || 'ESP32'}"`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    const now = new Date();
+    const timestampStr = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `VoltSense_ESP32_Live_Telemetry_${timestampStr}.csv`;
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    if (window.showToast) {
+      window.showToast(`Saved ${this.csvBuffer.length} records to ${filename}`);
+    }
+  },
+
+  /**
+   * Clears buffer and removes from localStorage
+   */
+  clearCsvBuffer() {
+    this.csvBuffer = [];
+    localStorage.removeItem('voltsense_live_telemetry_csv');
+    this.updateCsvLogStats();
+    if (window.showToast) {
+      window.showToast('Local CSV telemetry buffer cleared');
     }
   },
 

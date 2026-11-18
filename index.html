@@ -611,6 +611,30 @@
         </div>
       </div>
 
+      <!-- Real-Time Local CSV Logger Sub-Bar -->
+      <div class="csv-logger-bar">
+        <div class="csv-logger-left">
+          <span class="csv-badge">📁 LOCAL CSV RECORDER</span>
+          <span class="csv-status-label" id="csvLogStatus">
+            <span class="csv-recording-dot is-recording" id="csvRecordingDot"></span>
+            <span id="csvStatusText">Auto-logging active (buffered locally in browser)</span>
+          </span>
+          <span class="nav-tab-badge" id="csvLogCountBadge" style="background: rgba(0, 212, 255, 0.15); color: #00D4FF;">0 rows logged</span>
+          <span class="nav-tab-badge" id="csvLogSizeBadge" style="background: rgba(255, 255, 255, 0.05); color: var(--text-faint);">0.0 KB</span>
+        </div>
+        <div class="csv-logger-right">
+          <button class="btn-csv-toggle" id="btnToggleCsvLog" title="Pause or resume recording live incoming telemetry">
+            <span>⏹</span> Pause Logging
+          </button>
+          <button class="btn-csv-export" id="btnExportLiveCsv" title="Download the recorded telemetry buffer directly as a CSV file to disk">
+            <span>💾</span> Save CSV to Disk
+          </button>
+          <button class="btn-csv-clear" id="btnClearCsvLog" title="Clear recorded in-memory CSV buffer">
+            Clear Buffer
+          </button>
+        </div>
+      </div>
+
       <!-- Top Row: Physical 16x2 LCD Display + Live Sensor Breakdown -->
       <div class="livefeed-top-grid">
 
