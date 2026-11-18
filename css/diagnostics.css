@@ -1,0 +1,1366 @@
+/* ============================================================
+   DIAGNOSTICS & ML TABS - Specialized Styles
+   ============================================================ */
+
+/* ---------- TAB ROUTER NAVIGATION ---------- */
+.main-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-trace);
+  padding: 0 32px;
+  background: var(--bg-panel);
+}
+
+.main-nav-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-tab-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 14px 20px;
+  border-bottom: 2px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.nav-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.nav-tab-btn.is-active {
+  color: var(--cyan);
+  border-bottom-color: var(--cyan);
+  background: rgba(0, 212, 255, 0.06);
+}
+
+.nav-tab-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: var(--border-trace-strong);
+  color: var(--text-primary);
+}
+
+/* Header Mode Selector & Simulation Controls */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mode-toggle-pill {
+  display: flex;
+  background: var(--bg-base);
+  border: 1px solid var(--border-trace-strong);
+  border-radius: 20px;
+  padding: 2px;
+}
+
+.mode-pill-btn {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-faint);
+  transition: all 0.2s ease;
+}
+
+.mode-pill-btn.active {
+  background: var(--cyan);
+  color: var(--bg-base);
+}
+
+.btn-fault-sim {
+  background: rgba(255, 92, 92, 0.12);
+  border: 1px solid rgba(255, 92, 92, 0.35);
+  color: var(--red);
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  border-radius: var(--radius-small);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.btn-fault-sim:hover {
+  background: rgba(255, 92, 92, 0.25);
+}
+
+.last-sync-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* ---------- TAB CONTAINERS ---------- */
+.tab-content-panel {
+  display: none;
+  animation: fadeInTab 0.25s ease forwards;
+}
+
+.tab-content-panel.is-active {
+  display: block;
+}
+
+@keyframes fadeInTab {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- PERSISTENT TELEMETRY BANNER & ALERTS ---------- */
+.telemetry-banner-wrapper {
+  position: relative;
+}
+
+/* Hardware Offline Overlay (Phase 5) */
+.hardware-offline-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 22, 35, 0.88);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--red);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeInTab 0.2s ease forwards;
+}
+
+.hardware-offline-overlay.is-visible {
+  display: flex;
+}
+
+.offline-alert-box {
+  background: rgba(255, 92, 92, 0.15);
+  border: 1px solid var(--red);
+  border-radius: var(--radius-small);
+  padding: 16px 28px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.offline-alert-icon {
+  font-size: 32px;
+  animation: warning-flash 1s infinite alternate;
+}
+
+.offline-alert-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--red);
+  letter-spacing: 0.05em;
+}
+
+.offline-alert-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.btn-restore-link {
+  background: var(--red);
+  color: #fff;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 6px 16px;
+  border-radius: var(--radius-small);
+  margin-top: 6px;
+}
+
+/* Directional Current Arrow (Phase 2) */
+.current-flow-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.current-arrow-svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.3s ease;
+}
+.flow-charging {
+  color: var(--green);
+}
+.flow-charging .current-arrow-svg {
+  fill: var(--green);
+  animation: flow-pulse 1.2s infinite alternate;
+}
+.flow-discharging {
+  color: var(--text-secondary);
+}
+.flow-discharging .current-arrow-svg {
+  fill: var(--orange);
+}
+
+@keyframes flow-pulse {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-2px) scale(1.15); }
+}
+
+/* Voltage critical threshold (Phase 2) */
+.metric-big.voltage-alert {
+  color: var(--red) !important;
+  animation: warning-flash 1s infinite alternate;
+}
+
+/* Thermal flashing warning (Phase 2) */
+.thermal-alert-icon {
+  display: none;
+  font-size: 14px;
+  margin-left: 6px;
+  animation: warning-flash 0.8s infinite alternate;
+}
+.thermal-warning-active .thermal-alert-icon {
+  display: inline;
+}
+
+@keyframes warning-flash {
+  0% { opacity: 0.3; }
+  100% { opacity: 1; text-shadow: 0 0 10px rgba(255, 92, 92, 0.8); }
+}
+
+/* ---------- TAB 1: DIAGNOSTICS LAYOUT ---------- */
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Simulation Sidebar */
+.sim-sidebar-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-trace);
+  border-radius: var(--radius-panel);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sim-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-trace);
+  padding-bottom: 12px;
+}
+
+.sim-sidebar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-reset-sim {
+  background: transparent;
+  border: 1px solid var(--border-trace-strong);
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: var(--radius-small);
+  transition: all 0.15s ease;
+}
+.btn-reset-sim:hover {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.sim-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sim-control-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.sim-val-badge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cyan);
+  background: rgba(0, 212, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 212, 255, 0.25);
+}
+
+/* Chemistry Binary Toggle Switch */
+.chem-toggle-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--bg-base);
+  border: 1px solid var(--border-trace-strong);
+  border-radius: var(--radius-small);
+  padding: 3px;
+  gap: 4px;
+}
+
+.chem-toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chem-toggle-label input {
+  display: none;
+}
+
+.chem-toggle-label:has(input:checked) {
+  background: var(--cyan);
+  color: var(--bg-base);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);
+}
+
+/* Modern Range Slider */
+.sim-range-input {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-trace-strong);
+  outline: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.sim-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.7);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.sim-range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.range-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
+/* Output Cards Grid (Phase 3.3) */
+.output-cards-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.output-stat-card {
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-trace);
+  border-radius: var(--radius-small);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-card-title {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.stat-card-val {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-card-val.accent-cyan { color: var(--cyan); }
+.stat-card-val.accent-amber { color: var(--amber); }
+.stat-card-val.accent-green { color: var(--green); }
+
+.stat-card-subtext {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+/* Secondary Charts Row in Diagnostics Tab */
+.diagnostics-secondary-charts {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* ---------- TAB 2: ML PREDICTIONS LAYOUT ---------- */
+.ml-top-row {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+/* 70-80% Semi-Circle Transition Gauge (Phase 4.1) */
+.semi-gauge-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-trace);
+  border-radius: var(--radius-panel);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.semi-gauge-wrapper {
+  position: relative;
+  width: 280px;
+  height: 145px;
+  overflow: hidden;
+}
+
+.semi-gauge-svg {
+  width: 280px;
+  height: 280px;
+}
+
+.gauge-needle-arm {
+  position: absolute;
+  bottom: 0;
+  left: 140px;
+  width: 4px;
+  height: 115px;
+  background: #FFFFFF;
+  transform-origin: bottom center;
+  transform: rotate(-90deg);
+  transition: transform 0.8s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  border-radius: 4px 4px 0 0;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+.gauge-needle-cap {
+  position: absolute;
+  bottom: -10px;
+  left: 130px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--cyan);
+  border: 3px solid var(--bg-base);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+  z-index: 10;
+}
+
+.gauge-center-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.gauge-center-val {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.gauge-center-label {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+.gauge-zone-status {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* RUL Readout Hero Card (Phase 4.2) */
+.rul-hero-card {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.08) 0%, rgba(26, 35, 50, 0.9) 100%);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: var(--radius-panel);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.rul-top-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rul-chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan);
+  background: rgba(0, 212, 255, 0.12);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.rul-main-number {
+  font-family: var(--font-mono);
+  font-size: 34px;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin: 12px 0 6px;
+  letter-spacing: -0.5px;
+}
+
+.rul-subtext {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.rul-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-trace);
+}
+
+.rul-mini-metric-label {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.rul-mini-metric-val {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+/* ML Bottom Container: Confidence Chart + AI Panels */
+.ml-bottom-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 20px;
+}
+
+/* Toast Notification */
+.app-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--cyan);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: var(--radius-small);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 1000;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.app-toast.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Responsive adjustments (Phase 6) */
+@media (max-width: 1024px) {
+  .diagnostics-grid {
+    grid-template-columns: 1fr;
+  }
+  .output-cards-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .diagnostics-secondary-charts {
+    grid-template-columns: 1fr;
+  }
+  .ml-top-row {
+    grid-template-columns: 1fr;
+  }
+  .ml-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+  .cards-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .cards-row {
+    grid-template-columns: 1fr;
+  }
+  .output-cards-row {
+    grid-template-columns: 1fr;
+  }
+  .main-nav-bar {
+    padding: 0 16px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+  }
+}
+
+
+/* ============================================================
+   PROFESSOR PRESENTATION & VIVA WALKTHROUGH GUIDE
+   ============================================================ */
+
+.btn-walkthrough {
+  background: linear-gradient(135deg, rgba(255, 180, 84, 0.18) 0%, rgba(0, 212, 255, 0.22) 100%);
+  border: 1px solid rgba(255, 180, 84, 0.5);
+  color: #FFFFFF;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 11px;
+  padding: 6px 14px;
+  border-radius: var(--radius-small);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 12px rgba(255, 180, 84, 0.2);
+}
+
+.btn-walkthrough:hover {
+  background: linear-gradient(135deg, rgba(255, 180, 84, 0.3) 0%, rgba(0, 212, 255, 0.35) 100%);
+  border-color: var(--cyan);
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Modal Backdrop */
+.walkthrough-modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 16, 26, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeInModal 0.2s ease forwards;
+}
+
+.walkthrough-modal-backdrop.is-open {
+  display: flex;
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.walkthrough-modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-trace-strong);
+  border-radius: var(--radius-panel);
+  width: 100%;
+  max-width: 960px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 212, 255, 0.15);
+  overflow: hidden;
+}
+
+.walkthrough-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-trace);
+  background: var(--bg-panel-raised);
+}
+
+.walkthrough-title-area {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.walkthrough-icon {
+  font-size: 28px;
+}
+
+.walkthrough-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.walkthrough-subtitle {
+  font-size: 12px;
+  color: var(--cyan);
+  margin: 2px 0 0;
+  font-family: var(--font-mono);
+}
+
+.walkthrough-close-btn {
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 20px;
+  padding: 4px 8px;
+  border-radius: var(--radius-small);
+  transition: all 0.15s ease;
+}
+.walkthrough-close-btn:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.walkthrough-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Quick Demo Bar */
+.demo-packs-bar {
+  background: var(--bg-base);
+  border: 1px solid var(--border-trace-strong);
+  border-radius: var(--radius-small);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.demo-bar-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+}
+
+.demo-pack-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.btn-demo-pack {
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-trace);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: var(--radius-small);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-demo-pack:hover {
+  border-color: var(--cyan);
+  background: rgba(0, 212, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.demo-pack-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-green { background: var(--green); box-shadow: 0 0 6px rgba(0, 255, 136, 0.6); }
+.dot-amber { background: var(--amber); box-shadow: 0 0 6px rgba(255, 180, 84, 0.6); }
+.dot-red   { background: var(--red);   box-shadow: 0 0 6px rgba(255, 92, 92, 0.6); }
+
+/* Walkthrough Step Cards */
+.walkthrough-step-card {
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-trace);
+  border-radius: var(--radius-panel);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.step-num-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(0, 212, 255, 0.15);
+  color: var(--cyan);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+.step-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.talking-points-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.talking-points-list strong {
+  color: #FFFFFF;
+}
+
+.formula-box {
+  background: var(--bg-base);
+  border-left: 3px solid var(--cyan);
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan);
+  border-radius: 0 var(--radius-small) var(--radius-small) 0;
+  margin-top: 4px;
+}
+
+/* NASA Real Model Specs Card on Tab 2 */
+.nasa-specs-card {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(34, 48, 62, 0.8) 100%);
+  border: 1px solid rgba(0, 212, 255, 0.28);
+  border-radius: var(--radius-panel);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.nasa-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.nasa-metric-box {
+  background: var(--bg-base);
+  border: 1px solid var(--border-trace);
+  border-radius: var(--radius-small);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nasa-metric-label {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+.nasa-metric-val {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--green);
+}
+
+
+/* ============================================================
+   ESP32 LIVE FEEDS TAB & 16x2 LCD DISPLAY STYLES
+   ============================================================ */
+
+/* Connection Toolbar */
+.livefeed-toolbar {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-trace);
+  border-radius: var(--radius-panel);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.livefeed-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.livefeed-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.serial-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-trace-strong);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.dot-connected {
+  background: var(--green) !important;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.8) !important;
+  animation: pulse-dot 1s infinite alternate;
+}
+
+.dot-simulating {
+  background: var(--cyan) !important;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.8) !important;
+  animation: pulse-dot 1s infinite alternate;
+}
+
+.dot-disconnected {
+  background: #64748B !important;
+  box-shadow: none !important;
+}
+
+.dot-error {
+  background: var(--red) !important;
+  box-shadow: 0 0 10px rgba(255, 92, 92, 0.8) !important;
+  animation: warning-flash 0.5s infinite alternate;
+}
+
+.baud-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
+.baud-selector select {
+  background: var(--bg-base);
+  border: 1px solid var(--border-trace-strong);
+  border-radius: var(--radius-small);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.btn-serial-connect {
+  background: var(--cyan);
+  color: var(--bg-base);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 7px 16px;
+  border-radius: var(--radius-small);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+}
+
+.btn-serial-connect:hover {
+  background: #38bdf8;
+  transform: translateY(-1px);
+}
+
+.btn-serial-disconnect {
+  background: rgba(255, 92, 92, 0.15);
+  border: 1px solid var(--red);
+  color: var(--red);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 7px 16px;
+  border-radius: var(--radius-small);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-serial-disconnect:hover {
+  background: var(--red);
+  color: #fff;
+}
+
+.btn-serial-sim {
+  background: transparent;
+  border: 1px solid var(--border-trace-strong);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--radius-small);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-serial-sim:hover {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.btn-serial-sim.is-active {
+  background: rgba(0, 212, 255, 0.12);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.25);
+}
+
+/* Top Layout Grid */
+.livefeed-top-grid {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+  align-items: stretch;
+}
+
+/* 16x2 Physical LCD Module Emulation */
+.lcd-module-card {
+  background: #0d1e18;
+  border: 2px solid #1e3a2f;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+/* PCB Screw Holes */
+.lcd-pcb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.pcb-screw {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #d4af37;
+  border: 2px solid #5a4a15;
+  box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
+.lcd-silkscreen {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #52796f;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* LCD Bezel & Glass */
+.lcd-bezel {
+  background: #050d09;
+  border: 4px solid #162a22;
+  border-radius: 8px;
+  padding: 16px 18px;
+  box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.9), 0 2px 4px rgba(255, 255, 255, 0.05);
+}
+
+.lcd-screen-glass {
+  background: #0d2818;
+  border-radius: 4px;
+  padding: 16px 14px;
+  box-shadow: inset 0 0 15px rgba(0, 255, 65, 0.25), 0 0 25px rgba(0, 255, 65, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid #1f4a30;
+}
+
+.lcd-row {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  font-weight: 700;
+  color: #00ff66;
+  letter-spacing: 2px;
+  line-height: 1.1;
+  text-shadow: 0 0 10px rgba(0, 255, 102, 0.7), 0 0 20px rgba(0, 255, 102, 0.3);
+  white-space: pre;
+  user-select: none;
+}
+
+.lcd-pcb-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed #1e3a2f;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #52796f;
+}
+
+/* Live Sensor Cards Grid */
+.live-sensors-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.live-sensor-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-trace);
+  border-radius: var(--radius-panel);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sensor-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sensor-pin-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--cyan);
+  background: rgba(0, 212, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 212, 255, 0.25);
+}
+
+.sensor-big-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-mono);
+  margin: 6px 0;
+}
+
+.sensor-number {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.sensor-unit {
+  font-size: 16px;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.sensor-math-breakdown {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-base);
+  border-radius: var(--radius-small);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border: 1px solid var(--border-trace);
+}
+
+/* Oscilloscope & Terminal Bottom Grid */
+.livefeed-bottom-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+}
+
+/* Raw Serial Terminal */
+.serial-terminal-panel {
+  background: #0a0e17;
+  border: 1px solid var(--border-trace-strong);
+  border-radius: var(--radius-panel);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 360px;
+}
+
+.terminal-header {
+  background: #111827;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-trace);
+}
+
+.terminal-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-clear-term {
+  background: transparent;
+  border: 1px solid var(--border-trace-strong);
+  color: var(--text-faint);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-clear-term:hover {
+  color: #fff;
+  border-color: var(--text-secondary);
+}
+
+.serial-terminal-body {
+  flex: 1;
+  padding: 12px 14px;
+  overflow-y: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #38bdf8;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.terminal-line {
+  display: flex;
+  gap: 8px;
+  word-break: break-all;
+}
+
+.term-time {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.term-data {
+  color: #38bdf8;
+}
+
+.terminal-msg.info {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Live tab pulsing live dot */
+.tab-live-pulse {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff5c5c;
+  box-shadow: 0 0 8px rgba(255, 92, 92, 0.8);
+  animation: pulse-dot 1s infinite alternate;
+}
+
+@media (max-width: 1024px) {
+  .livefeed-top-grid {
+    grid-template-columns: 1fr;
+  }
+  .livefeed-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}

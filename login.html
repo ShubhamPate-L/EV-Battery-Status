@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign in — Battery Diagnostic Console</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/login.css" />
+</head>
+<body class="login-body">
+
+<div class="trace-field" aria-hidden="true"></div>
+
+<div class="login-shell">
+
+  <!-- LEFT: info panel -->
+  <section class="login-info">
+    <div class="login-info__tag">PORTABLE EV BATTERY ANALYTICS</div>
+    <h1 class="login-info__headline">See what's really happening inside the pack.</h1>
+    <p class="login-info__body">
+      Live telemetry straight from the ESP32 node, a ten-year degradation model,
+      and a simulator for testing how charging habits affect the battery's second life —
+      all in one console.
+    </p>
+
+    <ul class="login-feature-list">
+      <li class="login-feature">
+        <span class="login-feature__marker">V·A·°C</span>
+        <div>
+          <span class="login-feature__title">Live hardware telemetry</span>
+          <span class="login-feature__desc">Voltage, current, cell temperature, and charge state, streamed in real time.</span>
+        </div>
+      </li>
+      <li class="login-feature">
+        <span class="login-feature__marker">10Y</span>
+        <div>
+          <span class="login-feature__title">Degradation projection</span>
+          <span class="login-feature__desc">Baseline vs. real-world capacity curves across a ten-year horizon.</span>
+        </div>
+      </li>
+      <li class="login-feature">
+        <span class="login-feature__marker">Δ</span>
+        <div>
+          <span class="login-feature__title">What-if simulation</span>
+          <span class="login-feature__desc">Adjust fast-charging, climate, and daily distance to see the effect on battery health.</span>
+        </div>
+      </li>
+    </ul>
+
+    <div class="login-info__footer">Portable EV Battery Status &amp; Degradation Analytics Engine</div>
+  </section>
+
+  <!-- RIGHT: login form -->
+  <section class="login-panel">
+    <div class="login-card">
+      <h2 class="login-card__title">Sign in</h2>
+      <p class="login-card__subtitle">Authorized access only.</p>
+
+      <form id="loginForm" novalidate>
+        <label class="login-field">
+          <span class="login-field__label">Username</span>
+          <input type="text" id="username" name="username" autocomplete="username" required />
+        </label>
+
+        <label class="login-field">
+          <span class="login-field__label">Password</span>
+          <input type="password" id="password" name="password" autocomplete="current-password" required />
+        </label>
+
+        <p class="login-error" id="loginError" role="alert">Incorrect username or password.</p>
+
+        <button type="submit" class="login-submit">Sign in</button>
+      </form>
+
+      <div class="login-demo-hint">
+        Demo access — username <code>admin</code> · password <code>battery2026</code>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="js/auth.js"></script>
+</body>
+</html>

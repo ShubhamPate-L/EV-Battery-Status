@@ -1,0 +1,40 @@
+# ============================================================
+# Git Ignore - VoltSense Repository
+# ============================================================
+
+# Documents & Reports
+*.docx
+*.doc
+*.pdf
+*.pptx
+sample report/
+report_images/
+HARDWARE_SETUP_GUIDE.md
+
+# Image assets & generated diagrams
+*.png
+*.jpg
+*.jpeg
+*.svg.bak
+
+# Datasets & Binary Model Artifacts
+*.csv
+*.joblib
+
+# Scratch and report generation scripts
+build_figures.py
+compare_all_spacings.py
+compare_dash.py
+compare_fig2.py
+create_block_diagram_pil.py
+generate_block_diagram.py
+generate_report_docx.py
+
+# OS & Editor generated files
+desktop.ini
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
+__pycache__/
+*.pyc

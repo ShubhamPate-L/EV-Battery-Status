@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="js/authGuard.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoltSense — EV Battery Diagnostics & Degradation Engine</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/main.css?v=livefeed1" />
+  <link rel="stylesheet" href="css/components.css?v=livefeed1" />
+  <link rel="stylesheet" href="css/diagnostics.css?v=livefeed1" />
+</head>
+<body>
+
+<div class="dashboard-wrapper">
+
+  <!-- ============================================================
+       TOP HEADER (Phase 1 & Phase 5)
+       ============================================================ -->
+  <header class="dashboard-header">
+    <div class="header-brand">
+      <h1 class="brand-title">
+        <span class="brand-label">VoltSense</span>
+        <span class="brand-tagline">EV Battery Diagnostics Console</span>
+      </h1>
+
+      <div class="connection-badge" id="connStatus" data-state="connected">
+        <span class="conn-dot"></span>
+        <span class="conn-text" id="connStatusText">Connected (Mock Engine: EV-PACK-001)</span>
+      </div>
+
+      <div class="last-sync-badge" id="lastSyncDisplay">
+        Last Sync: <span id="lastSyncTime">Just now</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Professor Viva & Presentation Guide Button -->
+      <button class="btn-walkthrough" id="btnProfessorGuide" title="Open complete evaluation walkthrough with live feature test controls">
+        <span>🎓</span> Professor Presentation Guide
+      </button>
+
+      <!-- Mode toggle (Phase 1.1.4) -->
+      <div class="mode-toggle-pill" title="Toggle between simulated internal payload engine and live ESP32 polling">
+        <button class="mode-pill-btn active" id="btnModeMock">MOCK MODE</button>
+        <button class="mode-pill-btn" id="btnModeLive">LIVE HARDWARE</button>
+      </div>
+
+      <!-- Simulated link fault button (Phase 5 testing) -->
+      <button class="btn-fault-sim" id="btnSimulateDropout" title="Simulate 2 missed heartbeats to test hardware disconnect recovery">
+        <span>⚡</span> Simulate Disconnect
+      </button>
+
+      <!-- 4 Synthetic Data Profiles Selector (Pack 1 to 4) -->
+      <label class="pack-selector" title="Select one of the 4 synthetic battery evaluation profiles">
+        <select id="packSelect">
+          <option value="pack-1">Battery Pack #1 (NMC — Good Health)</option>
+          <option value="pack-2">Battery Pack #2 (NMC — Thermal Stressed / Bad Health)</option>
+          <option value="pack-3">Battery Pack #3 (LFP — Resilient / Good Health)</option>
+          <option value="pack-4">Battery Pack #4 (LFP — High C-Rate Stressed / Bad Health)</option>
+        </select>
+      </label>
+
+      <div class="user-profile">
+        <div class="profile-avatar">SP</div>
+        <div class="user-info">
+          <div class="user-name">Shubham Patel</div>
+          <div class="user-role">Lead Diagnostics Engineer</div>
+        </div>
+      </div>
+
+      <button class="logout-btn" id="logoutBtn">Log out →</button>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       MAIN TAB NAVIGATION BAR
+       ============================================================ -->
+  <nav class="main-nav-bar">
+    <div class="main-nav-tabs">
+      <button class="nav-tab-btn is-active" data-tab="diagnostics">
+        <span>⚡</span> Semi-Empirical Diagnostics
+        <span class="nav-tab-badge">Physics</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="ml">
+        <span>🧠</span> ML Predictions & Second-Life
+        <span class="nav-tab-badge">NASA AI</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="logs">
+        <span>📊</span> Telemetry Logs & Records
+        <span class="nav-tab-badge" id="logsCountBadge">720 pts</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="live-feed">
+        <span class="tab-live-pulse"></span> ESP32 Live Feed & LCD
+        <span class="nav-tab-badge" style="color: #00FF88;">Web Serial</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       DASHBOARD MAIN CONTAINER
+       ============================================================ -->
+  <main class="dashboard-main">
+
+    <!-- ============================================================
+         PHASE 2: PERSISTENT GLOBAL TELEMETRY BANNER
+         (Always visible across all tabs as primary safety readout)
+         ============================================================ -->
+    <section class="telemetry-banner-wrapper">
+
+      <!-- Hardware Offline Overlay (Phase 5.2 & 6.2) -->
+      <div class="hardware-offline-overlay" id="hardwareOfflineOverlay" aria-hidden="true">
+        <div class="offline-alert-box">
+          <div class="offline-alert-icon">⚠️</div>
+          <div class="offline-alert-title">HARDWARE LINK OFFLINE / TIMEOUT</div>
+          <div class="offline-alert-desc">
+            Missed consecutive 60-second telemetry heartbeats from ESP32 node.<br />
+            Retrying background handshake...
+          </div>
+          <button class="btn-restore-link" id="btnRestoreConnection">Restore Hardware Link</button>
+        </div>
+      </div>
+
+      <!-- Top 5 Metric Cards Row -->
+      <div class="cards-row">
+
+        <!-- 1. SoH Card -->
+        <article class="metric-card soh-card">
+          <h3 class="metric-label">STATE OF HEALTH (SoH)</h3>
+          <div class="metric-card-body">
+            <div class="metric-gauge">
+              <svg viewBox="0 0 120 120" class="gauge-svg">
+                <circle cx="60" cy="60" r="50" class="gauge-track" />
+                <circle cx="60" cy="60" r="50" class="gauge-arc" id="sohArcCard" />
+              </svg>
+              <div class="gauge-text">
+                <span class="gauge-value" id="sohValueCard">95</span><span class="gauge-unit">%</span>
+              </div>
+            </div>
+            <div class="metric-status optimal" id="sohStatusBadge">Optimal ↗</div>
+          </div>
+        </article>
+
+        <!-- 2. SoC Card -->
+        <article class="metric-card soc-card">
+          <h3 class="metric-label">STATE OF CHARGE (SoC)</h3>
+          <div class="metric-card-body">
+            <div class="metric-gauge">
+              <svg viewBox="0 0 120 120" class="gauge-svg">
+                <circle cx="60" cy="60" r="50" class="gauge-track" />
+                <circle cx="60" cy="60" r="50" class="gauge-arc" id="socArcCard" />
+              </svg>
+              <div class="gauge-text">
+                <span class="gauge-value" id="socValueCard">68</span><span class="gauge-unit">%</span>
+              </div>
+            </div>
+            <div class="metric-range" id="socRangeEstimate">~142 km est. range</div>
+          </div>
+        </article>
+
+        <!-- 3. Voltage Card (Phase 2.2: conditional threshold alerts) -->
+        <article class="metric-card voltage-card">
+          <h3 class="metric-label">BATTERY VOLTAGE</h3>
+          <div class="metric-card-body">
+            <div class="metric-display">
+              <span class="metric-big" id="voltageDisplayCard">24.4</span>
+              <span class="metric-unit">V</span>
+            </div>
+            <div class="metric-mini" id="voltageThresholdDesc">Nominal Range (21.0V - 25.2V)</div>
+          </div>
+        </article>
+
+        <!-- 4. Current Flow Card (Phase 2.3: directional animated arrows) -->
+        <article class="metric-card current-card">
+          <h3 class="metric-label">BATTERY CURRENT</h3>
+          <div class="metric-card-body">
+            <div class="metric-display">
+              <span class="metric-big" id="currentDisplayCard">85</span>
+              <span class="metric-unit">mA</span>
+            </div>
+            <div class="current-flow-indicator flow-discharging" id="currentFlowIndicator">
+              <svg viewBox="0 0 24 24" class="current-arrow-svg" id="currentArrowSvg">
+                <path d="M12 20L4 12h5V4h6v8h5z" />
+              </svg>
+              <span id="currentStatusText">Discharging (Active)</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- 5. Temperature Card (Phase 2.4: flashing warning if >40°C) -->
+        <article class="metric-card temp-card" id="tempCardElement">
+          <h3 class="metric-label">
+            BATTERY TEMP.
+            <span class="thermal-alert-icon" id="thermalAlertIcon">🔥</span>
+          </h3>
+          <div class="metric-card-body">
+            <div class="metric-display">
+              <span class="metric-big temp-green" id="tempDisplayCard">24</span>
+              <span class="metric-unit">°C</span>
+            </div>
+            <div class="metric-range temp-range" id="tempRangeDesc">Normal Range (20°C - 40°C)</div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         TAB 1: SEMI-EMPIRICAL EQUATION DIAGNOSTICS
+         ============================================================ -->
+    <section id="tab-diagnostics" class="tab-content-panel is-active">
+      <div class="diagnostics-grid">
+
+        <!-- 4.1 Interactive Simulation Sidebar -->
+        <aside class="sim-sidebar-card">
+          <div class="sim-sidebar-header">
+            <h2 class="sim-sidebar-title"><span>🎛️</span> Aging Simulation</h2>
+            <button class="btn-reset-sim" id="btnResetSim" title="Reset all simulation sliders to standard defaults">Reset</button>
+          </div>
+
+          <!-- Chemistry Toggle Switch -->
+          <div class="sim-control-group">
+            <label class="sim-control-label">
+              <span>Cell Chemistry</span>
+              <span class="sim-val-badge" id="chemActiveBadge">NMC</span>
+            </label>
+            <div class="chem-toggle-container">
+              <label class="chem-toggle-label">
+                <input type="radio" name="chemSelect" id="chemToggleNmc" value="NMC" checked />
+                <span>NMC (Cobalt)</span>
+              </label>
+              <label class="chem-toggle-label">
+                <input type="radio" name="chemSelect" id="chemToggleLfp" value="LFP" />
+                <span>LFP (Iron Phos.)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Regional Temperature Slider -->
+          <div class="sim-control-group">
+            <label class="sim-control-label" for="tempSlider">
+              <span>Regional Climate Temp</span>
+              <span class="sim-val-badge" id="tempBadge">+24°C</span>
+            </label>
+            <input type="range" class="sim-range-input" id="tempSlider" min="-10" max="50" step="1" value="24" />
+            <div class="range-ticks">
+              <span>-10°C (Arctic)</span>
+              <span>25°C</span>
+              <span>+50°C (Desert)</span>
+            </div>
+          </div>
+
+          <!-- Fast-Charging Ratio Slider -->
+          <div class="sim-control-group">
+            <label class="sim-control-label" for="fastChargeSlider">
+              <span>Fast-Charging Usage Ratio</span>
+              <span class="sim-val-badge" id="fastChargeBadge">15%</span>
+            </label>
+            <input type="range" class="sim-range-input" id="fastChargeSlider" min="0" max="100" step="5" value="15" />
+            <div class="range-ticks">
+              <span>0% (AC Slow)</span>
+              <span>50%</span>
+              <span>100% (DC Fast)</span>
+            </div>
+          </div>
+
+          <!-- Daily Distance Slider -->
+          <div class="sim-control-group">
+            <label class="sim-control-label" for="distanceSlider">
+              <span>Daily Commute / Distance</span>
+              <span class="sim-val-badge" id="distanceBadge">40 km</span>
+            </label>
+            <input type="range" class="sim-range-input" id="distanceSlider" min="10" max="200" step="5" value="40" />
+            <div class="range-ticks">
+              <span>10 km/day</span>
+              <span>100 km</span>
+              <span>200 km/day</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main Visualization Area -->
+        <div class="diagnostics-charts-column">
+
+          <!-- 4.2 10-Year Degradation Trajectory Chart Panel -->
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">10-Year Semi-Empirical Degradation Trajectory</h2>
+                <p style="font-size: 11px; color: var(--text-faint); margin-top: 2px;">
+                  Real-time physics calculation: Capacity Fade = Calendar Aging(t, T) + Cycle Aging(N, C-rate)
+                </p>
+              </div>
+            </div>
+
+            <div class="chart-container" style="height: 320px;">
+              <canvas id="degradationChart"></canvas>
+            </div>
+
+            <!-- 4.3 Data Output Cards -->
+            <div class="output-cards-row">
+              <div class="output-stat-card">
+                <span class="stat-card-title">10-Yr Total Loss (ΔQ)</span>
+                <span class="stat-card-val accent-cyan" id="cardTotalLoss">12.2%</span>
+                <span class="stat-card-subtext">Cumulative capacity drop</span>
+              </div>
+              <div class="output-stat-card">
+                <span class="stat-card-title">Calendar Aging Share</span>
+                <span class="stat-card-val accent-green" id="cardCalendarLoss">4.6%</span>
+                <span class="stat-card-subtext">Time & thermal diffusion</span>
+              </div>
+              <div class="output-stat-card">
+                <span class="stat-card-title">Cycle Aging Share</span>
+                <span class="stat-card-val accent-amber" id="cardCycleLoss">7.6%</span>
+                <span class="stat-card-subtext">Charge throughput & stress</span>
+              </div>
+              <div class="output-stat-card">
+                <span class="stat-card-title">Second-Life Transition</span>
+                <span class="stat-card-val" id="cardSecondLife">13.8 Years</span>
+                <span class="stat-card-subtext">Target 70% SoH retirement</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Secondary Physics Diagnostic Charts -->
+          <div class="diagnostics-secondary-charts">
+            <div class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title" style="font-size: 12px;">Aging Mechanism Breakdown (Stacked Loss)</h3>
+              </div>
+              <div class="chart-container" style="height: 200px;">
+                <canvas id="breakdownChart"></canvas>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title" style="font-size: 12px;">Sensitivity Tornado (Parameter Swing)</h3>
+              </div>
+              <div class="chart-container" style="height: 200px;">
+                <canvas id="sensitivityChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         TAB 2: MACHINE LEARNING PREDICTIONS (NASA PCoE TRAINED)
+         ============================================================ -->
+    <section id="tab-ml" class="tab-content-panel">
+
+      <!-- Top Row: 70-80% Gauge & RUL Readout Hero -->
+      <div class="ml-top-row">
+
+        <!-- 5.1 The 70-80% Transition Gauge -->
+        <article class="semi-gauge-panel">
+          <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-faint); text-transform: uppercase;">
+              Second-Life Gate Gauge
+            </span>
+            <span style="font-size: 10px; font-family: var(--font-mono); color: var(--amber);">
+              Zone: 70%–80% SoH
+            </span>
+          </div>
+
+          <div class="semi-gauge-wrapper">
+            <svg viewBox="0 0 280 140" class="semi-gauge-svg">
+              <!-- Zone 1: < 70% SoH (Red retirement zone: 50% to 70%) -->
+              <path d="M 35 135 A 105 105 0 0 1 107.6 35.2" fill="none" stroke="#FF5C5C" stroke-width="18" stroke-linecap="round" />
+              <!-- Zone 2: 70% to 80% SoH (Distinct Warning Orange/Yellow band) -->
+              <path d="M 107.6 35.2 A 105 105 0 0 1 172.4 35.2" fill="none" stroke="#FFB454" stroke-width="18" />
+              <!-- Zone 3: > 80% SoH (Green automotive-grade band: 80% to 100%) -->
+              <path d="M 172.4 35.2 A 105 105 0 0 1 245 135" fill="none" stroke="#00FF88" stroke-width="18" stroke-linecap="round" />
+
+              <!-- Gauge ticks & labels -->
+              <text x="32" y="138" fill="#7A8491" font-size="10" font-family="JetBrains Mono" text-anchor="middle">50%</text>
+              <text x="100" y="24" fill="#FFB454" font-size="10" font-family="JetBrains Mono" text-anchor="middle">70%</text>
+              <text x="180" y="24" fill="#FFB454" font-size="10" font-family="JetBrains Mono" text-anchor="middle">80%</text>
+              <text x="248" y="138" fill="#00FF88" font-size="10" font-family="JetBrains Mono" text-anchor="middle">100%</text>
+            </svg>
+
+            <!-- Rotating Needle Indicator -->
+            <div class="gauge-needle-arm" id="mlGaugeNeedle"></div>
+            <div class="gauge-needle-cap"></div>
+          </div>
+
+          <div class="gauge-center-readout">
+            <span class="gauge-center-val" id="mlGaugeValText">95.2%</span>
+            <span class="gauge-center-label">Current Battery State of Health</span>
+            <span class="gauge-zone-status" id="mlGaugeStatusText">OPTIMAL: Active Automotive Grade (>80%)</span>
+          </div>
+        </article>
+
+        <!-- 5.2 Remaining Useful Life (RUL) Hero Card -->
+        <article class="rul-hero-card">
+          <div class="rul-top-badge">
+            <span class="rul-chip">DATA-DRIVEN RUL PREDICTION</span>
+            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--cyan);">
+              Trained on NASA Ames PCoE Dataset
+            </span>
+          </div>
+
+          <div>
+            <h2 class="rul-main-number" id="rulDisplayText">Estimated RUL: 7 Years, 8 Months</h2>
+            <p class="rul-subtext" id="rulSubtext">
+              Until target 75.0% SoH second-life gate · Model confidence 94.3% (±1.4 mo)
+            </p>
+          </div>
+
+          <div class="rul-metrics-grid">
+            <div>
+              <div class="rul-mini-metric-label">Target Threshold</div>
+              <div class="rul-mini-metric-val">75.0% SoH</div>
+            </div>
+            <div>
+              <div class="rul-mini-metric-label">Model Confidence</div>
+              <div class="rul-mini-metric-val" style="color: var(--cyan);">94.3% (R²=0.943)</div>
+            </div>
+            <div>
+              <div class="rul-mini-metric-label">Post-Retirement Use</div>
+              <div class="rul-mini-metric-val" style="color: var(--green);">Stationary BESS</div>
+            </div>
+          </div>
+        </article>
+
+      </div>
+
+      <!-- Real NASA Trained Model Specifications Panel -->
+      <div class="nasa-specs-card">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <span style="font-size: 12px; font-weight: 800; color: #FFFFFF;">🔬 REAL DATASET MODEL VERIFICATION: NASA Ames PCoE Li-ion Battery Run-to-Failure</span>
+            <p style="font-size: 11px; color: var(--text-faint); margin-top: 2px;">
+              Models trained on experimental cells B0005, B0006, B0007 & B0018 (636 real degradation cycles). Reference: Saha & Goebel, NASA Ames Research Center.
+            </p>
+          </div>
+          <span style="font-size: 11px; font-family: var(--font-mono); color: var(--cyan); background: rgba(0,212,255,0.1); padding: 3px 10px; border-radius: 4px; border: 1px solid rgba(0,212,255,0.3);">
+            Architecture: GBDT Ensemble Regressor
+          </span>
+        </div>
+
+        <div class="nasa-metrics-grid">
+          <div class="nasa-metric-box">
+            <span class="nasa-metric-label">RUL Prediction R²</span>
+            <span class="nasa-metric-val">0.9433</span>
+            <span style="font-size: 9px; color: var(--text-faint);">94.3% Variance Explained</span>
+          </div>
+          <div class="nasa-metric-box">
+            <span class="nasa-metric-label">RUL Mean Abs Error</span>
+            <span class="nasa-metric-val" style="color: var(--cyan);">3.34 Cycles</span>
+            <span style="font-size: 9px; color: var(--text-faint);">Hold-out Test Validation</span>
+          </div>
+          <div class="nasa-metric-box">
+            <span class="nasa-metric-label">SoH Regression R²</span>
+            <span class="nasa-metric-val" style="color: var(--amber);">0.8397</span>
+            <span style="font-size: 9px; color: var(--text-faint);">Physics & Cycle Inputs</span>
+          </div>
+          <div class="nasa-metric-box">
+            <span class="nasa-metric-label">SoH RMSE</span>
+            <span class="nasa-metric-val" style="color: #FFFFFF;">3.73%</span>
+            <span style="font-size: 9px; color: var(--text-faint);">Root Mean Squared Error</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Grid: 5.3 Confidence Interval Chart + AI Insights -->
+      <div class="ml-bottom-grid">
+
+        <!-- 5.3 Confidence Interval Chart -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Probabilistic SoH Forecast & Confidence Cone (95% CI)</h2>
+              <p style="font-size: 11px; color: var(--text-faint); margin-top: 2px;">
+                Historical observations overlayed against ML future trendline with shaded uncertainty cone
+              </p>
+            </div>
+            <button class="btn-run-prediction" id="btnRunPredictionTab">▶ RUN NEW PREDICTION</button>
+          </div>
+
+          <div class="chart-container" style="height: 340px;">
+            <canvas id="mlConfidenceChart"></canvas>
+          </div>
+        </div>
+
+        <!-- AI Panels Column -->
+        <div class="ai-panels-column">
+          <article class="ai-panel warning-panel">
+            <div class="ai-icon warning">⚠</div>
+            <div class="ai-content">
+              <h3 class="ai-title">AI Inference: Discrepancy Detection</h3>
+              <ul class="ai-list" id="aiAnomalyText">
+                <li>Notice: Normal cycle variance. Optimal solid-electrolyte interphase (SEI) stability.</li>
+                <li>Cell Type: <strong>NMC</strong> · Operating Stability Index: <strong id="mlStabilityIndex">99.2%</strong>.</li>
+                <li>Second-life retirement threshold projected in: <strong>13.8 Years</strong>.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="ai-panel info-panel">
+            <div class="ai-icon info">ℹ</div>
+            <div class="ai-content">
+              <h3 class="ai-title">AI Inference: Life Optimization Suggestions</h3>
+              <ul class="ai-list" id="aiOptimizationText">
+                <li>• Continue standard 80% daily charge limits to achieve >12 years active automotive service.</li>
+                <li>Trained with NASA PCoE battery regression models (R² = 0.943, MAE = 3.34 cycles).</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         TAB 3: TELEMETRY DATA & HISTORICAL LOGS
+         ============================================================ -->
+    <section id="tab-logs" class="tab-content-panel">
+      <section class="panel telemetry-table-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Live Telemetry & Historical Data Logs</h2>
+          <div class="table-controls">
+            <div class="time-tabs">
+              <button class="time-tab" data-range="live">
+                <span class="live-dot"></span>Live
+              </button>
+              <button class="time-tab" data-range="15m">15m</button>
+              <button class="time-tab active" data-range="1h">Past 1h</button>
+              <button class="time-tab" data-range="6h">Past 6h</button>
+              <button class="time-tab" data-range="12h">Past 12h</button>
+            </div>
+            <input type="text" class="search-logs" id="searchLogsInput" placeholder="Filter by timestamp, SoC..." />
+            <button class="btn-export-data" id="exportDataBtn">📥 Export CSV</button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="telemetry-table">
+            <thead>
+              <tr>
+                <th>DATE</th>
+                <th>TIME</th>
+                <th>SoC</th>
+                <th>VOLTAGE</th>
+                <th>CURRENT</th>
+                <th>TEMP</th>
+              </tr>
+            </thead>
+            <tbody id="telemetryTableBody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-controls" id="tablePaginationControls">
+          <button class="pagination-btn prev" id="prevBtn">← Previous</button>
+          <span class="pagination-indicator" id="paginationIndicator">1 of 1</span>
+          <button class="pagination-btn next" id="nextBtn">Next →</button>
+        </div>
+      </section>
+    </section>
+
+    <!-- ============================================================
+         TAB 4: ESP32 LIVE SERIAL FEED & 16x2 LCD DISPLAY
+         ============================================================ -->
+    <section id="tab-live-feed" class="tab-content-panel">
+
+      <!-- Connection Toolbar -->
+      <div class="livefeed-toolbar">
+        <div class="livefeed-toolbar-left">
+          <div class="serial-status-pill" id="serialStatusBadge">
+            <span class="conn-dot dot-disconnected" id="serialStatusDot"></span>
+            <span id="serialStatusText">Disconnected (Ready to Connect)</span>
+          </div>
+
+          <label class="baud-selector">
+            <span>Baud:</span>
+            <select id="serialBaudSelect">
+              <option value="115200" selected>115200 (ESP32 Standard)</option>
+              <option value="9600">9600</option>
+              <option value="57600">57600</option>
+              <option value="230400">230400</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="livefeed-toolbar-right">
+          <!-- Connect / Disconnect Buttons (Web Serial API) -->
+          <button class="btn-serial-connect" id="btnSerialConnect">
+            <span>🔌</span> Connect ESP32 (USB COM Port)
+          </button>
+          <button class="btn-serial-disconnect" id="btnSerialDisconnect" style="display: none;">
+            <span>⏏</span> Disconnect Serial
+          </button>
+
+          <!-- Bench Simulator Toggle -->
+          <button class="btn-serial-sim" id="btnSerialSimulate">
+            <span>▶</span> Run 1s Bench Simulator
+          </button>
+
+          <span class="nav-tab-badge" id="serialPacketsCount">0 packets</span>
+          <span class="nav-tab-badge" id="serialBytesCount">0 KB</span>
+        </div>
+      </div>
+
+      <!-- Top Row: Physical 16x2 LCD Display + Live Sensor Breakdown -->
+      <div class="livefeed-top-grid">
+
+        <!-- Physical 16x2 I2C LCD Display Module -->
+        <article class="lcd-module-card">
+          <div>
+            <div class="lcd-pcb-header">
+              <div class="pcb-screw"></div>
+              <span class="lcd-silkscreen">VOLTSENSE ESP32 LCD-1602A · I2C ADDR 0x27</span>
+              <div class="pcb-screw"></div>
+            </div>
+
+            <!-- LCD Bezel and Matrix Screen Glass -->
+            <div class="lcd-bezel">
+              <div class="lcd-screen-glass">
+                <div class="lcd-row" id="lcdLine1">Temp: 25.5°C     </div>
+                <div class="lcd-row" id="lcdLine2">Curr: 1.25A      </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lcd-pcb-footer">
+            <span>Interface: LiquidCrystal_I2C (SDA: GPIO 21, SCL: GPIO 22)</span>
+            <span style="color: var(--cyan);">UPDATE_INTERVAL: 1000ms</span>
+          </div>
+        </article>
+
+        <!-- Live Sensor Measurement Cards -->
+        <div class="live-sensors-grid">
+
+          <!-- Battery Pack Voltage Card -->
+          <div class="live-sensor-card">
+            <div class="sensor-card-top">
+              <span class="stat-card-title">BATTERY PACK VOLTAGE</span>
+              <span class="sensor-pin-badge" style="color: #FFB454; border-color: rgba(255, 180, 84, 0.4); background: rgba(255, 180, 84, 0.1);">Pack Bus / Sense</span>
+            </div>
+            <div class="sensor-big-readout">
+              <span class="sensor-number" id="liveVoltDisplay" style="color: #FFB454;">24.2</span>
+              <span class="sensor-unit">V</span>
+            </div>
+            <div class="sensor-math-breakdown">
+              <span id="liveVoltStatus" style="color: #00FF88;">Normal Nominal Window (21.0V - 25.2V)</span>
+              <span>Bus Sense: Direct JSON / IR dynamic</span>
+            </div>
+          </div>
+
+          <!-- ACS712 Current Card -->
+          <div class="live-sensor-card">
+            <div class="sensor-card-top">
+              <span class="stat-card-title">ACS712 CURRENT (20A)</span>
+              <span class="sensor-pin-badge">Pin GPIO 34</span>
+            </div>
+            <div class="sensor-big-readout">
+              <span class="sensor-number" id="liveCurrDisplay" style="color: #00D4FF;">1.25</span>
+              <span class="sensor-unit">A</span>
+            </div>
+            <div class="sensor-math-breakdown">
+              <span>Sensitivity: 100 mV / Amp (0.81V Zero)</span>
+              <span id="liveCurrentDirection" style="color: #00FF88;">Charging (Inflow ↗)</span>
+            </div>
+          </div>
+
+          <!-- DS18B20 Temp Card -->
+          <div class="live-sensor-card">
+            <div class="sensor-card-top">
+              <span class="stat-card-title">DS18B20 DIGITAL TEMP</span>
+              <span class="sensor-pin-badge">Pin GPIO 4</span>
+            </div>
+            <div class="sensor-big-readout">
+              <span class="sensor-number" id="liveTempDisplay" style="color: #00FF88;">25.5</span>
+              <span class="sensor-unit">°C</span>
+            </div>
+            <div class="sensor-math-breakdown">
+              <span>Sensor: Dallas 1-Wire Digital IC</span>
+              <span>Resolution: 12-bit (0.0625°C step)</span>
+            </div>
+          </div>
+
+          <!-- Real-Time Power Calculation Card -->
+          <div class="live-sensor-card">
+            <div class="sensor-card-top">
+              <span class="stat-card-title">CALCULATED PACK POWER</span>
+              <span class="sensor-pin-badge">P = V × I</span>
+            </div>
+            <div class="sensor-big-readout">
+              <span class="sensor-number" id="livePowerDisplay" style="color: var(--amber);">30.0</span>
+              <span class="sensor-unit">W</span>
+            </div>
+            <div class="sensor-math-breakdown">
+              <span>Formula: Voltage (V) × Current (A)</span>
+              <span>Updated in real time every 1000ms</span>
+            </div>
+          </div>
+
+          <!-- Signal Conditioning Card -->
+          <div class="live-sensor-card">
+            <div class="sensor-card-top">
+              <span class="stat-card-title">SIGNAL CONDITIONING & OFFSET</span>
+              <span class="sensor-pin-badge">Ratio 1.4545</span>
+            </div>
+            <div class="sensor-math-breakdown" style="margin-top: 8px;">
+              <div style="display: flex; justify-content: space-between;">
+                <span>Pin Voltage (0-3.3V):</span>
+                <strong id="livePinVoltDisplay" style="color: #fff;">1.805 V</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span>Sensor V (V_pin * 1.4545):</span>
+                <strong id="liveSensorVoltDisplay" style="color: var(--cyan);">2.625 V</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span>Calibrated Zero-Point:</span>
+                <strong id="liveZeroOffsetDisplay" style="color: #FFB454;">0.810 V (Calibrated)</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- ESP32 ADC & Sampling Specs Card -->
+          <div class="live-sensor-card">
+            <div class="sensor-card-top">
+              <span class="stat-card-title">ADC FILTERING & SAMPLING</span>
+              <span class="sensor-pin-badge" style="color: #a78bfa; border-color: rgba(167, 139, 250, 0.3); background: rgba(167, 139, 250, 0.1);">10-Sample Avg</span>
+            </div>
+            <div class="sensor-math-breakdown" style="margin-top: 8px;">
+              <div style="display: flex; justify-content: space-between;">
+                <span>ADC Range:</span>
+                <span style="color: #fff;">12-Bit (0 - 4095)</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span>Sample Smoothing:</span>
+                <span style="color: #a78bfa;">10 quick samples @ 2ms</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span>Update Interval:</span>
+                <span style="color: #00FF88;">1000ms (1 Hz stream)</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Bottom Row: Real-Time Oscilloscope Chart + Raw Serial Terminal -->
+      <div class="livefeed-bottom-grid">
+
+        <!-- High-Frequency Oscilloscope Chart -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Real-Time Sensor Oscilloscope (1000ms Interval)</h2>
+              <p style="font-size: 11px; color: var(--text-faint); margin-top: 2px;">
+                Rolling 30-second live window: Current (Amps, cyan) and Temperature (°C, green)
+              </p>
+            </div>
+          </div>
+
+          <div class="chart-container" style="height: 300px;">
+            <canvas id="liveFeedChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Raw Serial Terminal Window -->
+        <div class="serial-terminal-panel">
+          <div class="terminal-header">
+            <div class="terminal-title">
+              <span>💻</span> ESP32 USB COM PORT STREAM
+            </div>
+            <div class="terminal-actions">
+              <span style="font-size: 10px; color: var(--text-faint); font-family: var(--font-mono);" id="terminalLineCount">0 lines</span>
+              <button class="btn-clear-term" id="btnClearTerminal">Clear</button>
+            </div>
+          </div>
+
+          <div class="serial-terminal-body" id="serialTerminal">
+            <div class="terminal-msg info">// Ready. Connect your ESP32 via USB and click 'Connect ESP32 (USB COM Port)' or run the 1s Bench Simulator.</div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============================================================
+       PROFESSOR PRESENTATION & VIVA WALKTHROUGH MODAL
+       ============================================================ -->
+  <div class="walkthrough-modal-backdrop" id="walkthroughModal" aria-hidden="true">
+    <div class="walkthrough-modal">
+      <div class="walkthrough-header">
+        <div class="walkthrough-title-area">
+          <span class="walkthrough-icon">🎓</span>
+          <div>
+            <h2 class="walkthrough-title">VoltSense: Professor Demonstration & Viva Walkthrough</h2>
+            <p class="walkthrough-subtitle">End-to-End Presentation Guide with Live Feature Switches</p>
+          </div>
+        </div>
+        <button class="walkthrough-close-btn" id="btnCloseWalkthrough">✕</button>
+      </div>
+
+      <div class="walkthrough-body">
+
+        <!-- Quick Demo Packs Interactive Switcher -->
+        <div class="demo-packs-bar">
+          <span class="demo-bar-label">⚡ QUICK LIVE DEMO PACKS (Click any pack to switch live telemetry & models):</span>
+          <div class="demo-pack-buttons">
+            <button class="btn-demo-pack" data-pack="pack-1">
+              <span class="demo-pack-dot dot-green"></span>
+              <div>
+                <strong>Pack 1: Healthy NMC</strong>
+                <div style="font-size: 10px; color: var(--text-faint);">95.2% SoH · Mild 24°C</div>
+              </div>
+            </button>
+
+            <button class="btn-demo-pack" data-pack="pack-2">
+              <span class="demo-pack-dot dot-amber"></span>
+              <div>
+                <strong>Pack 2: Stressed NMC</strong>
+                <div style="font-size: 10px; color: var(--text-faint);">76.8% SoH · 42°C Flash</div>
+              </div>
+            </button>
+
+            <button class="btn-demo-pack" data-pack="pack-3">
+              <span class="demo-pack-dot dot-green"></span>
+              <div>
+                <strong>Pack 3: Resilient LFP</strong>
+                <div style="font-size: 10px; color: var(--text-faint);">96.8% SoH · Fleet duty</div>
+              </div>
+            </button>
+
+            <button class="btn-demo-pack" data-pack="pack-4">
+              <span class="demo-pack-dot dot-red"></span>
+              <div>
+                <strong>Pack 4: Critical LFP</strong>
+                <div style="font-size: 10px; color: var(--text-faint);">72.4% SoH · 0 mo to 75%</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section 1 -->
+        <div class="walkthrough-step-card">
+          <div class="step-header">
+            <span class="step-num-badge">STEP 1 · HARDWARE & WEBSERIAL ARCHITECTURE</span>
+            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--cyan);">USB COM Port + 16x2 LCD</span>
+          </div>
+          <div class="step-title">ESP32 Hardware USB Serial Stream & 16x2 LCD Display</div>
+          <ul class="talking-points-list">
+            <li><strong>Sensors:</strong> Precision voltage divider, ACS712 20A Hall-effect current sensor (with 1k/2.2k divider), and DS18B20 digital 1-Wire temperature sensor.</li>
+            <li><strong>Approach 1 — Native Web Serial API:</strong> The ESP32 is plugged directly into the laptop via USB. Chrome/Edge's native <code>navigator.serial</code> reads the COM port at 115200 baud without any middle-tier server or driver installations.</li>
+            <li><strong>Physical 16x2 I2C LCD Display:</strong> Mirrored pixel-for-pixel in the 'ESP32 Live Feed & LCD' tab showing the exact <code>Temp: XX.X°C</code> and <code>Curr: X.XXA</code> output from your Arduino sketch!</li>
+          </ul>
+        </div>
+
+        <!-- Section 2 -->
+        <div class="walkthrough-step-card">
+          <div class="step-header">
+            <span class="step-num-badge">STEP 2 · 4 SYNTHETIC PACK EVALUATION STUDY</span>
+            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--text-faint);">NMC vs LFP / Good vs Bad Health</span>
+          </div>
+          <div class="step-title">Contrast Good vs Bad Health Profiles</div>
+          <ul class="talking-points-list">
+            <li><strong>Explain Pack 1 vs Pack 2 (NMC):</strong> Pack 1 is operated in mild 24°C weather with slow overnight AC charging (RUL ~7.8 years). Pack 2 has been subjected to 42°C tropical heat and 85% continuous DC fast charging, causing rapid SEI degradation and dropping SoH to 76.8% (entering the warning zone!).</li>
+            <li><strong>Explain Pack 3 vs Pack 4 (LFP):</strong> Pack 3 shows LFP's inherent longevity (96.8% SoH). Pack 4 has been severely abused at 95% fast charging and high temperature, dropping SoH to 72.4% (RUL to 75% is 0 months; pack must be retired to stationary storage).</li>
+          </ul>
+        </div>
+
+        <!-- Section 3 -->
+        <div class="walkthrough-step-card">
+          <div class="step-header">
+            <span class="step-num-badge">STEP 3 · PHYSICS-BASED SEMI-EMPIRICAL MODEL</span>
+            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--text-faint);">Arrhenius Calendar + Cycle Power Law</span>
+          </div>
+          <div class="step-title">Deterministic 10-Year Degradation Trajectory</div>
+          <ul class="talking-points-list">
+            <li><strong>Mathematical Formulation:</strong> Capacity loss is calculated in real time:</li>
+          </ul>
+          <div class="formula-box">
+            ΔQ(t) = c_chem × [1.45 · √t · (1 + 0.032(T - 25)) + 0.022 · √(N_annual · t) · (1 + 0.55 · FastChargeRatio)]
+          </div>
+          <ul class="talking-points-list" style="margin-top: 6px;">
+            <li><strong>Chemistry Coefficient:</strong> c_chem = 0.72 for LFP vs 1.00 for NMC (LFP offers ~28% lower degradation rate).</li>
+            <li><strong>Interactive Sliders:</strong> Drag the climate temperature or fast-charging slider to demonstrate how the 10-year curve, stacked breakdown, and sensitivity tornado recalculate instantly!</li>
+          </ul>
+        </div>
+
+        <!-- Section 4 -->
+        <div class="walkthrough-step-card">
+          <div class="step-header">
+            <span class="step-num-badge">STEP 4 · REAL NASA TRAINED MACHINE LEARNING</span>
+            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--text-faint);">PCoE Cells B0005, B0006, B0007, B0018</span>
+          </div>
+          <div class="step-title">Remaining Useful Life (RUL) & Probabilistic Confidence Cone</div>
+          <ul class="talking-points-list">
+            <li><strong>Real Dataset:</strong> Trained on the official NASA Ames PCoE 18650 Li-ion dataset (636 experimental discharge cycles).</li>
+            <li><strong>Model Architecture & Metrics:</strong> Gradient Boosted Decision Tree (GBDT) ensemble achieving <strong>R² = 0.9433 (94.3%)</strong> and <strong>MAE = 3.34 cycles</strong> for RUL estimation.</li>
+            <li><strong>The 70%–80% Semi-Circle Transition Gauge:</strong> The orange zone represents the crucial EV automotive retirement window (when SoH drops below 80%).</li>
+            <li><strong>Confidence Cone (95% CI):</strong> The shaded region around the forecast trendline visualizes epistemic and aleatoric uncertainty over time.</li>
+          </ul>
+        </div>
+
+        <!-- Section 5 -->
+        <div class="walkthrough-step-card">
+          <div class="step-header">
+            <span class="step-num-badge">STEP 5 · HARDWARE FAULT TOLERANCE</span>
+            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--text-faint);">Phase 5 Resilient Polling Loop</span>
+          </div>
+          <div class="step-title">Hardware Disconnect Simulation & Auto-Recovery</div>
+          <ul class="talking-points-list">
+            <li><strong>How to Demo to Professor:</strong> Click the <code>⚡ Simulate Disconnect</code> button in the top header.</li>
+            <li><strong>Observed Behavior:</strong> After 2 missed 60s heartbeats, a full-screen "HARDWARE LINK OFFLINE" alert overlay covers the telemetry banner while keeping tabs navigable.</li>
+            <li><strong>Recovery:</strong> Click "Restore Hardware Link" or toggle the button to show seamless background auto-recovery with zero data corruption!</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div class="app-toast" id="appToast">
+    <span id="toastIcon">✓</span>
+    <span id="toastMessage">Dashboard synchronized</span>
+  </div>
+
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="js/state.js"></script>
+<script src="js/mockData.js"></script>
+<script src="js/telemetryData.js"></script>
+<script src="js/degradationMath.js"></script>
+<script src="js/chartConfig.js"></script>
+<script src="js/poller.js"></script>
+<script src="js/webSerialService.js"></script>
+<script src="js/diagnosticsTab.js"></script>
+<script src="js/mlPredictions.js"></script>
+<script src="js/liveFeedTab.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
