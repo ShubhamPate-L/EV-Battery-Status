@@ -294,10 +294,13 @@ const LiveFeedTabController = {
    * { temperature: 25.5, current: 1.25, voltage: 24.2, timestamp: Date }
    */
   handleLivePacket(data) {
-    const tempC = data.temperature;
-    const currentA = data.current;
-    const voltageV = data.voltage !== undefined ? data.voltage : 24.2;
-    const timeLabel = data.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    if (!data) return;
+    const tempC = (data.temperature !== undefined && !isNaN(data.temperature)) ? data.temperature : 25.0;
+    const currentA = (data.current !== undefined && !isNaN(data.current)) ? data.current : 0.0;
+    const voltageV = (data.voltage !== undefined && !isNaN(data.voltage)) ? data.voltage : 24.2;
+    const timeLabel = (data.timestamp instanceof Date)
+      ? data.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     // 1. UPDATE 16x2 PHYSICAL LCD DISPLAY EMULATOR
     // Matches the exact format printed in your Arduino code:

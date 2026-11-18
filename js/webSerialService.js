@@ -1,17 +1,27 @@
 // ============================================================
 // WEBSERIALSERVICE.JS - Native Browser Web Serial API Manager
 // Connects directly to ESP32 over USB COM Port (Baud 115200)
+// Supports JSON, LCD multi-line format, and CSV telemetry feeds
 // ============================================================
 
 class WebSerialService {
   constructor() {
     this.port = null;
     this.reader = null;
-    this.readableStreamClosed = null;
     this.isConnected = false;
     this.baudRate = 115200;
     this.simulatedStreamTimer = null;
     this.isSimulating = false;
+    this.noDataTimeout = null;
+    this.hasReceivedFirstByte = false;
+
+    // Persistent state for sensor readings (preserves readings when split across LCD lines)
+    this.lastReadings = {
+      temperature: 25.5,
+      current: 1.25,
+      voltage: 24.2,
+      lastReceived: null
+    };
 
     // Statistics
     this.stats = {
@@ -78,6 +88,9 @@ class WebSerialService {
       
       await this.port.open({ baudRate: this.baudRate });
       this.isConnected = true;
+      this.hasReceivedFirstByte = false;
+      this.stats.bytesReceived = 0;
+      this.stats.packetsParsed = 0;
 
       const portInfo = this.port.getInfo ? this.port.getInfo() : {};
       const usbVendor = portInfo.usbVendorId ? `USB: 0x${portInfo.usbVendorId.toString(16)}` : 'USB Serial';
@@ -87,6 +100,21 @@ class WebSerialService {
         message: `Connected (${this.baudRate} baud · ${usbVendor})`,
         portInfo
       });
+
+      this.emit('line', `// [SYSTEM] Connected to COM port at ${this.baudRate} baud. Listening for ESP32 serial data...`);
+
+      // Watchdog: If 3.5 seconds pass and 0 bytes arrive from ESP32, guide the user
+      if (this.noDataTimeout) clearTimeout(this.noDataTimeout);
+      this.noDataTimeout = setTimeout(() => {
+        if (this.isConnected && !this.hasReceivedFirstByte) {
+          this.emit('line', '// [HARDWARE NOTICE] Port is connected, but 0 bytes received from ESP32 yet.');
+          this.emit('line', '// Tip: In your ESP32 code, ensure you have Serial.println(jsonPayload); inside void loop() so it transmits via USB cable (not only SerialBT).');
+          this.emit('status', {
+            state: 'connected',
+            message: `Connected · Waiting for Serial output (Ensure Serial.println is in ESP32 loop)`
+          });
+        }
+      }, 3500);
 
       console.log(`[WebSerial] Opened serial port at ${this.baudRate} baud`);
 
@@ -107,22 +135,36 @@ class WebSerialService {
    */
   async startReading() {
     let lineBuffer = '';
+    const decoder = new TextDecoder('utf-8', { fatal: false });
 
     while (this.port && this.port.readable && this.isConnected) {
-      const textDecoder = new TextDecoderStream();
-      this.readableStreamClosed = this.port.readable.pipeTo(textDecoder.writable);
-      this.reader = textDecoder.readable.getReader();
+      this.reader = this.port.readable.getReader();
 
       try {
-        while (true) {
+        while (this.isConnected) {
           const { value, done } = await this.reader.read();
           if (done) break;
-          if (value) {
-            this.stats.bytesReceived += value.length;
-            lineBuffer += value;
+          if (value && value.length > 0) {
+            // First byte received from physical ESP32
+            if (!this.hasReceivedFirstByte) {
+              this.hasReceivedFirstByte = true;
+              if (this.noDataTimeout) {
+                clearTimeout(this.noDataTimeout);
+                this.noDataTimeout = null;
+              }
+              this.emit('line', '// [SYSTEM] ✓ ESP32 serial data detected! Streaming live hardware values...');
+              this.emit('status', {
+                state: 'connected',
+                message: `Connected & Streaming Live (${this.baudRate} baud · USB Serial)`
+              });
+            }
 
-            // Split by newline
-            const lines = lineBuffer.split(/\r?\n/);
+            this.stats.bytesReceived += value.byteLength || value.length;
+            const textChunk = decoder.decode(value, { stream: true });
+            lineBuffer += textChunk;
+
+            // Split by newline (\r\n or \n or \r)
+            const lines = lineBuffer.split(/\r?\n|\r/);
             // The last item is the remaining partial line
             lineBuffer = lines.pop();
 
@@ -142,70 +184,125 @@ class WebSerialService {
         }
       } finally {
         if (this.reader) {
-          this.reader.releaseLock();
+          try {
+            this.reader.releaseLock();
+          } catch (e) {}
+          this.reader = null;
         }
       }
     }
   }
 
   /**
-   * Parses incoming serial line from ESP32:
+   * Universal Serial Parser for ESP32:
    * Accepts:
-   * 1. JSON format: {"temperature":25.5,"current":1.25,"voltage":24.2}
-   * 2. Raw Text / LCD format: Temp: 25.5 C  Curr: 1.25 A  Volt: 24.2 V
+   * 1. Standard JSON payload: {"temperature":25.5,"current":1.25,"voltage":24.2}
+   * 2. LCD Display text:
+   *    Line 1: Temp: 25.5°C
+   *    Line 2: Curr: 1.25A
+   * 3. Combined LCD text: Temp: 25.5°C  Curr: 1.25A
+   * 4. Plain CSV numerical line: 25.5, 1.25 or 25.5, 1.25, 24.2
+   * 5. Key-Value pairs: temp=25.5, current=1.25
    */
   processIncomingLine(line) {
     this.emit('line', line);
 
-    let parsed = null;
+    let tempFound = null;
+    let currFound = null;
+    let voltFound = null;
 
-    // 1. Try standard JSON payload (from ESP32 sketch String jsonPayload)
-    if (line.startsWith('{') && line.endsWith('}')) {
+    // Strategy 1: JSON Object extraction (even if enclosed in other text)
+    const jsonMatch = line.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
       try {
-        parsed = JSON.parse(line);
+        const obj = JSON.parse(jsonMatch[0]);
+        // Temperature variants
+        for (const k of ['temperature', 'temp', 'tempC', 'temp_c', 't', 'Temperature', 'Temp']) {
+          if (obj[k] !== undefined && !isNaN(obj[k])) {
+            tempFound = parseFloat(obj[k]);
+            break;
+          }
+        }
+        // Current variants
+        for (const k of ['current', 'curr', 'currentAmps', 'current_amps', 'currA', 'i', 'Current', 'Curr', 'amps', 'Amps']) {
+          if (obj[k] !== undefined && !isNaN(obj[k])) {
+            currFound = parseFloat(obj[k]);
+            break;
+          }
+        }
+        // Voltage variants
+        for (const k of ['voltage', 'volt', 'pack_voltage', 'voltV', 'v', 'Voltage', 'Volt']) {
+          if (obj[k] !== undefined && !isNaN(obj[k])) {
+            voltFound = parseFloat(obj[k]);
+            break;
+          }
+        }
       } catch (e) {
-        // Fallback to loose extraction
+        // Fall through to regex extraction
       }
     }
 
-    // 2. Fallback regex parser for either JSON or plaintext
-    if (!parsed) {
-      const tempMatch = line.match(/(?:temperature|"temperature"|Temp|temp):\s*([0-9.-]+)/i);
-      const currMatch = line.match(/(?:current|"current"|Curr|curr):\s*([0-9.-]+)/i);
-      const voltMatch = line.match(/(?:voltage|"voltage"|Volt|volt|V):\s*([0-9.-]+)/i);
-
-      if (tempMatch || currMatch || voltMatch) {
-        parsed = {
-          temperature: tempMatch ? parseFloat(tempMatch[1]) : undefined,
-          current: currMatch ? parseFloat(currMatch[1]) : undefined,
-          voltage: voltMatch ? parseFloat(voltMatch[1]) : undefined
-        };
+    // Strategy 2: Labeled Text / LCD Format Regex Extraction
+    // Handles "Temp: 25.5°C", "Temp: 25.5 C", "Temp: 25.5", "temperature: 25.5", "T: 25.5"
+    if (tempFound === null) {
+      const tMatch = line.match(/(?:temperature|temp_c|tempc|temp|t)\s*[:= ]\s*([0-9.-]+)/i);
+      if (tMatch) {
+        tempFound = parseFloat(tMatch[1]);
       }
     }
 
-    if (parsed && (parsed.temperature !== undefined || parsed.current !== undefined || parsed.voltage !== undefined)) {
-      const tempVal = parseFloat(parsed.temperature !== undefined ? parsed.temperature : 25.0);
-      const currVal = parseFloat(parsed.current !== undefined ? parsed.current : 0.0);
+    // Handles "Curr: 1.25A", "Curr: 1.25 A", "Curr: 1.25", "current: 1.25", "I: 1.25"
+    if (currFound === null) {
+      const cMatch = line.match(/(?:current_amps|currentamps|current|curr_a|curra|curr|amps|amp|i)\s*[:= ]\s*([0-9.-]+)/i);
+      if (cMatch) {
+        currFound = parseFloat(cMatch[1]);
+      }
+    }
 
-      // Determine voltage: use explicitly measured voltage if provided in payload;
-      // otherwise derive realistic pack terminal voltage (nominal - I*R_int)
-      let voltVal;
-      if (parsed.voltage !== undefined && !isNaN(parsed.voltage)) {
-        voltVal = parseFloat(parsed.voltage);
+    // Handles "Volt: 24.2V", "Volt: 24.2 V", "Volt: 24.2", "voltage: 24.2", "V: 24.2"
+    if (voltFound === null) {
+      const vMatch = line.match(/(?:pack_voltage|voltage|volt_v|voltv|volt|v)\s*[:= ]\s*([0-9.-]+)/i);
+      if (vMatch) {
+        voltFound = parseFloat(vMatch[1]);
+      }
+    }
+
+    // Strategy 3: Plain CSV / Numerical values (e.g. "25.5, 1.25" or "25.5, 1.25, 24.2")
+    if (tempFound === null && currFound === null) {
+      const csvParts = line.split(/[,;\t]/).map(s => s.trim()).filter(Boolean);
+      if (csvParts.length >= 2 && !isNaN(csvParts[0]) && !isNaN(csvParts[1])) {
+        const p1 = parseFloat(csvParts[0]);
+        const p2 = parseFloat(csvParts[1]);
+        tempFound = p1;
+        currFound = p2;
+        if (csvParts.length >= 3 && !isNaN(csvParts[2])) {
+          voltFound = parseFloat(csvParts[2]);
+        }
+      }
+    }
+
+    // If any sensor reading was decoded, update persistent state buffer
+    if (tempFound !== null || currFound !== null || voltFound !== null) {
+      if (tempFound !== null) this.lastReadings.temperature = tempFound;
+      if (currFound !== null) this.lastReadings.current = currFound;
+      if (voltFound !== null) {
+        this.lastReadings.voltage = voltFound;
       } else {
+        // Derive pack terminal voltage with realistic internal resistance (IR drop): V = V_ocv - I * 0.045
         const activePackId = window.AppState ? window.AppState.get('activePackId') : 'pack-1';
         const profile = (typeof BATTERY_PACK_PROFILES !== 'undefined' && BATTERY_PACK_PROFILES[activePackId])
           ? BATTERY_PACK_PROFILES[activePackId]
           : null;
         const baseV = profile ? profile.currentStatus.voltage : 24.4;
-        // Internal resistance drop (IR drop): V = V_ocv - I * 0.045
-        voltVal = parseFloat((baseV - (currVal * 0.045)).toFixed(2));
+        this.lastReadings.voltage = parseFloat((baseV - (this.lastReadings.current * 0.045)).toFixed(2));
       }
 
+      this.lastReadings.lastReceived = new Date();
+
       const normalized = {
-        temperature: tempVal,
-        current: currVal,
-        voltage: voltVal,
+        temperature: this.lastReadings.temperature,
+        current: this.lastReadings.current,
+        voltage: this.lastReadings.voltage,
         rawLine: line,
         timestamp: new Date()
       };
@@ -222,18 +319,19 @@ class WebSerialService {
   async disconnect() {
     this.isConnected = false;
 
+    if (this.noDataTimeout) {
+      clearTimeout(this.noDataTimeout);
+      this.noDataTimeout = null;
+    }
+
     if (this.reader) {
       try {
         await this.reader.cancel();
-      } catch (e) {
-        // Ignore abort errors
-      }
-    }
-
-    if (this.readableStreamClosed) {
-      try {
-        await this.readableStreamClosed.catch(() => {});
       } catch (e) {}
+      try {
+        this.reader.releaseLock();
+      } catch (e) {}
+      this.reader = null;
     }
 
     if (this.port) {
@@ -242,11 +340,10 @@ class WebSerialService {
       } catch (e) {
         console.warn('[WebSerial] Error closing port:', e.message);
       }
+      this.port = null;
     }
 
-    this.port = null;
-    this.reader = null;
-    this.emit('status', { state: 'disconnected', message: 'Disconnected' });
+    this.emit('status', { state: 'disconnected', message: 'Disconnected (Ready to Connect)' });
     console.log('[WebSerial] Port closed.');
   }
 
@@ -278,7 +375,6 @@ class WebSerialService {
       
       // Realistic ACS712 current based on user's calibrated 0.81V zero-point:
       // currentAmps = (sensorVoltage - 0.81) / 0.100;
-      // Normal battery discharge or charging around 1.1A to 1.6A
       const currentAmps = parseFloat((1.25 + Math.sin(step * 0.12) * 0.35 + (Math.random() - 0.5) * 0.08).toFixed(2));
 
       // Realistic pack terminal voltage with mild ripple and IR load drop
