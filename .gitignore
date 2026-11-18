@@ -30,6 +30,7 @@ compare_fig2.py
 create_block_diagram_pil.py
 generate_block_diagram.py
 generate_report_docx.py
+create_summary_report_docx.py
 
 # OS & Editor generated files
 desktop.ini
