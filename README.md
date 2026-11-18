@@ -97,6 +97,7 @@ EV-Battery-Status/
 ├── index.html                  # Main diagnostic dashboard & SPA router
 ├── login.html                  # Secure authentication portal
 ├── README.md                   # Project documentation
+├── log_telemetry_csv.py        # Standalone Python hardware CSV logger
 ├── trained_ml_model.json       # Exported NASA ML weights (RUL & SoH)
 ├── train_battery_ml.py         # NASA Ames dataset ML training script
 ├── css/
